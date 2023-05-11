@@ -1,0 +1,6 @@
+<div>
+    <sly-file-storage-upload v-if="context.slyProjectId"
+                             :options="{ folder: '/import/custom-import-from-file/' + context.formId + '/' }"
+                             @files-uploaded="state.files = '/import/custom-import-from-file/' + context.formId + '/'">
+    </sly-file-storage-upload>
+</div>

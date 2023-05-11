@@ -1,0 +1,14 @@
+{
+  "name": "Custom Import from File",
+  "description": "Demonstrates how to make custom import supervisely app, that imports data from files",
+  "categories": ["development"],
+  "main_script": "src/main.py",
+  "modal_template": "src/modal.html",
+  "headless": true,
+  "icon": "https://user-images.githubusercontent.com/48913536/206195024-712f5cf9-cfdb-4cf4-8ee9-71cd191081c2.png",
+  "poster": "https://user-images.githubusercontent.com/48913536/207625734-ccef5e02-911a-4ef6-b58a-d664891cc4b2.png",
+  "context_menu": {
+    "context_category": "Import",
+    "target": ["files_file", "images_project", "images_dataset"]
+  }
+}
