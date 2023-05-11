@@ -9,7 +9,7 @@ description: >-
 
 In this tutorial, we will create an import app that will upload data from an external link to Supervisely using import app template from SDK.
 
-We uploaded prepared archive with demo data to the template-import-app repo release draft - [demo_data.zip](https://github.com/supervisely-ecosystem/template-import-app/releases/download/v0.0.1/demo_data.zip)
+We uploaded prepared archive with demo data to the template-import-app repo release draft - [demo_data.zip](https://github.com/supervisely-ecosystem/template-import-app/files/11452975/demo_data.zip)
 
 ```text
 demo_data.zip

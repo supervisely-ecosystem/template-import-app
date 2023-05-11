@@ -39,7 +39,7 @@ class MyImport(sly.app.Import):
         work_dir = sly.app.get_data_dir()
 
         # link to demo data
-        link = "https://github.com/supervisely-ecosystem/template-import-app/releases/download/v0.0.1/demo_data.zip"
+        link = "https://github.com/supervisely-ecosystem/template-import-app/files/11452975/demo_data.zip"
 
         # save path for data
         archive_path = os.path.join(work_dir, "demo_data.zip")
