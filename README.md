@@ -6,7 +6,7 @@ This guide provides an overview of the custom import template and describes the 
 
 💻 [Source code](https://github.com/supervisely/supervisely/blob/master/supervisely/app/import_template.py)
 
-`sly.app.Import` class will handle export routines for you:
+`sly.app.Import` class will handle import routines for you:
 
 - ✅ Check that selected team, workspace, project or dataset exist and that you have access to it
 - ⬇️ Download your data from Supervisely platform to remote container or local hard drive if you are debugging your app
@@ -15,16 +15,17 @@ This guide provides an overview of the custom import template and describes the 
 - 🧹 Remove source directory from Team Files after successful import
 - 🖼️ Show your project on Supervisely platform workspace tasks page
 
-`sly.app.Import` has a `Context` subclass which contains all required information that you need for exporting your data from Supervisely platform:
+`sly.app.Import` has a `Context` subclass which contains all required information that you need for importing your data from Supervisely platform:
 
-- `Team ID` - shows team id where exporting project or dataset is located
-- `Workspace ID` - shows workspace id where exporting project or dataset is located
-- `Project ID` - id of exporting project
-- `Path` - path to your data
+- `Team ID` - shows team id where your data is located
+- `Workspace ID` - shows workspace id where your project is located (if `Project ID` is specified) or will be created
+- `Project ID` - id of existing project to which data will be imported. None if you import data to new project
+- `Dataset ID` - id of existing dataset to which data will be imported. None if you import data to new dataset
+- `Path` - path to your data on local machine. None if you import data from external link
 - `Is directory` - shows if your data is a directory or file
 - `Is on agent` - shows if your data is located on agent or not
 
-`context` variable is passed as an argument to `process` method of class `MyImport` and `context` object will be created automatically when you execute export script.
+`context` variable is passed as an argument to `process` method of class `MyImport` and `context` object will be created automatically when you execute import script.
 
 ```python
 class MyImport(sly.app.Import):
@@ -39,7 +40,7 @@ Team ID: 8
 Workspace ID: 349
 Project ID: 8534
 Dataset ID: 22852
-Path: /data/my_project.txt
+Path: /data/my_file.txt
 Is directory: False
 Is on agent: False
 ```
@@ -55,19 +56,19 @@ If you want to download external data, you should reimplement method `is_path_re
 
 The custom import template supports the following import scenarios:
 
-1. Import without template: this scenario allows for importing data without applying import template. It provides a basic import functionality where the data is imported using basic methods from Supervisely SDK.
+1. [Import without template](/tutorials/import-from-scratch.md): this scenario allows for importing data without applying import template. It provides a basic import functionality where the data is imported using basic methods from Supervisely SDK.
 
-2. Import from a text file: With this scenario, you can import data using a data from text files in various formats like `.csv`, `.txt`, `.xml`, `.yaml`, `.json` from Supervisely Team Files. Assuming text file contains a link to an image, bitmap, numpy array, or bytes.
+2. [Import from a text file](/tutorials/import-text-file.md): With this scenario, you can import data using a data from text files in various formats like `.csv`, `.txt`, `.xml`, `.yaml`, `.json` from Supervisely Team Files. Assuming text file contains a link to an image, bitmap, numpy array, or bytes.
 
-3. Import from an archive: this scenario describes importing data using an archive from Supervisely Team Files. The data can be in various formats, such as `.zip` or `.tar`. The import template engine will download the data and pass the path to the archive to `sly.app.Import.Context`.
+3. [Import from an archive](/tutorials/import-archive.md): this scenario describes importing data using an archive from Supervisely Team Files. The data can be in various formats, such as `.zip` or `.tar`. The import template engine will download the data and pass the path to the archive to `sly.app.Import.Context`.
 
-4. Import from a folder: in this scenario, you can import data using a folder. The import template engine will download specified folder and pass the path to the folder with data to `sly.app.Import.Context`.
+4. [Import from a folder](/tutorials/import-folder.md): in this scenario, you can import data using a folder. The import template engine will download specified folder and pass the path to the folder with data to `sly.app.Import.Context`.
 
-5. Import from an agent folder: this scenario involves importing data using a folder stored on an agent. The import template engine will download specified folder from the agent and pass the path to the folder with data to `sly.app.Import.Context`.
+5. [Import from an agent folder](/tutorials/import-agent.md): this scenario involves importing data using a folder stored on an agent. The import template engine will download specified folder from the agent and pass the path to the folder with data to `sly.app.Import.Context`.
 
-6. Import from an external link: with this scenario, you can import data hosted externally (Not on Supervisely instance). In this case you will need to implement downloading part on your own.
+6. [Import from an external link](/tutorials/import-external-link.md): with this scenario, you can import data hosted externally (Not on Supervisely instance). In this case you will need to implement downloading part on your own.
 
-7. Import with template using a graphical user interface (GUI): This scenario provides a user-friendly graphical interface for importing your data. The GUI allows users to select the desired folder or archive from Team Files or Drag & Drop option and configure import settings easily. It simplifies the import process and provides an intuitive experience for users.
+7. [Import with template using a graphical user interface (GUI)](/tutorials/import-gui.md): This scenario provides a user-friendly graphical interface for importing your data. The GUI allows users to select the desired folder or archive from Team Files or Drag & Drop option and configure import settings easily. It simplifies the import process and provides an intuitive experience for users.
 
 ## Set up an environment for development
 
@@ -77,11 +78,11 @@ We advise reading our [from script to supervisely app](../basics/from-script-to-
 
 **Step 1.** Prepare `~/supervisely.env` file with credentials. [Learn more here.](../../getting-started/basics-of-authentication.md#how-to-use-in-python)
 
-**Step 2.** Fork and clone [repository](https://github.com/supervisely-ecosystem/export-custom-format) with source code and create [Virtual Environment](https://docs.python.org/3/library/venv.html).
+**Step 2.** Fork and clone [repository](https://github.com/supervisely-ecosystem/template-import-app) with source code and create [Virtual Environment](https://docs.python.org/3/library/venv.html).
 
 ```bash
-git clone https://github.com/supervisely-ecosystem/export-custom-format
-cd export-custom-format
+git clone https://github.com/supervisely-ecosystem/template-import-app
+cd template-import-app
 ./create_venv.sh
 ```
 
