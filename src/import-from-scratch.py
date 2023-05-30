@@ -35,7 +35,7 @@ STORAGE_DIR = sly.app.get_data_dir()
 
 
 # Method to process folder with images and upload them to Supervisely server
-def process_import(local_data_dir):
+def process_import(local_data_dir, project_id, dataset_id, progress):
     images_names = []
     images_paths = []
     for file in os.listdir(local_data_dir):
@@ -43,18 +43,19 @@ def process_import(local_data_dir):
         images_names.append(file)
         images_paths.append(file_path)
 
-    with SlyTqdm(total=len(images_paths)) as pbar:
+    with progress(total=len(images_paths)) as pbar:
         for img_name, img_path in zip(images_names, images_paths):
             try:
                 # upload image into dataset on Supervisely server
-                info = api.image.upload_path(dataset_id=dataset.id, name=img_name, path=img_path)
+                info = api.image.upload_path(dataset_id=dataset_id, name=img_name, path=img_path)
                 sly.logger.trace(f"Image has been uploaded: id={info.id}, name={info.name}")
             except Exception as e:
                 sly.logger.warn("Skip image", extra={"name": img_name, "reason": repr(e)})
             finally:
                 # update progress bar
                 pbar.update(1)
-    res_project = api.project.get_info_by_id(project.id)
+
+    res_project = api.project.get_info_by_id(project_id)
     return res_project
 
 
@@ -71,15 +72,15 @@ if IS_PRODUCTION is True:
     )
 
     # Step 2: Settings
-    remove_source_files = Checkbox("Remove source files after successful import", value=True)
+    remove_source_files = Checkbox("Remove source files after successful import", checked=True)
     settings_card = Card(
         title="Settings", description="Select import settings", content=remove_source_files
     )
 
     # Step 3: Create Project
     ws_selector = SelectWorkspace(default_id=WORKSPACE_ID, team_id=TEAM_ID)
-    project_name = Input(value="My Project")
-    project_creator = Container(widgets=[ws_selector, project_name])
+    output_project_name = Input(value="My Project")
+    project_creator = Container(widgets=[ws_selector, output_project_name])
     project_card = Card(
         title="Create Project",
         description="Select destination team, workspace and enter project name",
@@ -107,37 +108,71 @@ if IS_PRODUCTION is True:
 
     @start_import_btn.click
     def start_import():
-        # download folder from Supervisely Team Files to local storage if debugging in production mode
-        PATH_TO_FOLDER = tf_selector.get_selected_paths()
-        if PATH_TO_FOLDER is not None:
-            # specify local path to download
-            local_data_path = os.path.join(STORAGE_DIR, os.path.basename(PATH_TO_FOLDER))
-            # download file from Supervisely Team Files to local storage
-            api.file.download_directory(
-                team_id=TEAM_ID, remote_path=PATH_TO_FOLDER, local_save_path=local_data_path
+        try:
+            data_card.lock()
+            settings_card.lock()
+            project_card.lock()
+
+            output_text.hide()
+            project_name = output_project_name.get_value()
+            if project_name is None or project_name == "":
+                output_text.set(text="Please, enter project name", status="error")
+                output_text.show()
+                return
+
+            # download folder from Supervisely Team Files to local storage if debugging in production mode
+            PATH_TO_FOLDER = tf_selector.get_selected_paths()
+            if len(PATH_TO_FOLDER) > 0:
+                PATH_TO_FOLDER = PATH_TO_FOLDER[0]
+                # specify local path to download
+                local_data_path = os.path.join(
+                    STORAGE_DIR, os.path.basename(PATH_TO_FOLDER).lstrip("/")
+                )
+                # download file from Supervisely Team Files to local storage
+                api.file.download_directory(
+                    team_id=TEAM_ID, remote_path=PATH_TO_FOLDER, local_save_path=local_data_path
+                )
+            else:
+                output_text.set(
+                    text="Please, specify path to folder in Supervisely Team Files", status="error"
+                )
+                output_text.show()
+                return
+
+            project = api.project.create(
+                workspace_id=WORKSPACE_ID, name=project_name, change_name_if_conflict=True
             )
-        else:
-            raise DialogWindowError(
-                title="",
-                description="Please, specify path to folder or file in Supervisely Team Files.",
+            dataset = api.dataset.create(
+                project_id=project.id, name="ds0", change_name_if_conflict=True
             )
 
-        res_project = process_import(local_data_path)
-        # remove local storage directory with files
-        sly.fs.remove_dir(STORAGE_DIR)
+            output_progress.show()
+            res_project = process_import(local_data_path, project.id, dataset.id, output_progress)
+            # remove local storage directory with files
+            # sly.fs.remove_dir(STORAGE_DIR)
 
-        # remove source files from Supervisely Team Files if checked
-        if remove_source_files.is_checked():
-            api.file.remove_dir(TEAM_ID, PATH_TO_FOLDER)
+            # remove source files from Supervisely Team Files if checked
+            if remove_source_files.is_checked():
+                api.file.remove_dir(TEAM_ID, PATH_TO_FOLDER)
 
-        # set output project after successful import
-        api.task.set_output_project(
-            task_id=TASK_ID, project_id=res_project.id, project_name=res_project.name
-        )
-        sly.logger.info(f"Result project: id={res_project.id}, name={res_project.name}")
+            # set output project after successful import
+            api.task.set_output_project(
+                task_id=TASK_ID, project_id=res_project.id, project_name=res_project.name
+            )
 
-        # stop app
-        app.shutdown()
+            output_progress.hide()
+            output_project_thumbnail.set(info=res_project)
+            output_project_thumbnail.show()
+            output_text.set(text="Import is finished", status="success")
+            output_text.show()
+            start_import_btn.disable()
+
+            sly.logger.info(f"Result project: id={res_project.id}, name={res_project.name}")
+        except Exception as e:
+            data_card.unlock()
+            settings_card.unlock()
+            project_card.unlock()
+            raise DialogWindowError(title="Import error", description=f"Error: {e}")
 
 
 # if debugging in local mode
@@ -150,8 +185,8 @@ if IS_PRODUCTION is False:
     dataset = api.dataset.create(project_id=project.id, name="ds0", change_name_if_conflict=True)
 
     if PATH_TO_FOLDER is None:
-        raise ValueError("Please, specify path to folder in local storage.")
+        raise ValueError("Please, specify path to folder in local.env file")
 
-    res_project = process_import(PATH_TO_FOLDER)
+    progress = tqdm
+    res_project = process_import(PATH_TO_FOLDER, dataset.id, progress)
     sly.logger.info(f"Result project: id={res_project.id}, name={res_project.name}")
-    app.shutdown()
