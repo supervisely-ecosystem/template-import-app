@@ -9,6 +9,13 @@
   "poster": "https://user-images.githubusercontent.com/48913536/207625734-ccef5e02-911a-4ef6-b58a-d664891cc4b2.png",
   "context_menu": {
     "context_category": "Import",
-    "target": ["files_file", "images_project", "images_dataset"]
+    "target": [
+      "images_project",
+      "images_dataset",
+      "files_folder",
+      "files_file",
+      "agent_folder",
+      "agent_file"
+    ]
   }
 }

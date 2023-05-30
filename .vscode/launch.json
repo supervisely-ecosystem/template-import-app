@@ -7,7 +7,7 @@
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
-            "justMyCode": false,
+            "justMyCode": true,
             "env": {
                 "PYTHONPATH": "${workspaceFolder}:${PYTHONPATH}",
                 "ENV": "development",
@@ -15,16 +15,48 @@
             }
         },
         {
-            "name": "Advanced debug",
+            "name": "Advanced debug: with template",
             "type": "python",
             "request": "launch",
-            "program": "${file}",
-            "console": "integratedTerminal",
-            "justMyCode": false,
+            "module": "uvicorn",
+            "args": [
+                "src.import-with-template:app",
+                "--host",
+                "0.0.0.0",
+                "--port",
+                "8000",
+                "--ws",
+                "websockets",
+                "--reload"
+            ],
+            "jinja": true,
+            "justMyCode": true,
             "env": {
                 "PYTHONPATH": "${workspaceFolder}:${PYTHONPATH}",
                 "ENV": "production",
             }
         },
+        {
+            "name": "Advanced debug: from scratch",
+            "type": "python",
+            "request": "launch",
+            "module": "uvicorn",
+            "args": [
+                "src.import-from-scratch:app",
+                "--host",
+                "0.0.0.0",
+                "--port",
+                "8000",
+                "--ws",
+                "websockets",
+                "--reload"
+            ],
+            "jinja": true,
+            "justMyCode": true,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}:${PYTHONPATH}",
+                "ENV": "production",
+            }
+        }
     ]
 }

@@ -171,3 +171,9 @@ Output of this python program:
 {"message": "Source directory: '/data/my_project.txt' was successfully removed.", "timestamp": "2023-05-09T18:09:05.849Z", "level": "info"}
 {"message": "Result project: id=21357, name=My Project", "timestamp": "2023-05-09T18:09:05.850Z", "level": "info"}
 ```
+
+## How to run it in Supervisely
+
+Submitting an app to the Supervisely Ecosystem isn’t as simple as pushing code to github repository, but it’s not as complicated as you may think of it either.
+
+Please follow this [link](https://developer.supervisely.com/app-development/basics/add-private-app) for instructions on adding your app. We have produced a step-by-step guide on how to add your application to the Supervisely Ecosystem.

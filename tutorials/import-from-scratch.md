@@ -7,16 +7,16 @@ description: >-
 
 ## Introduction
 
-We recommend to use SDK import template for creating custom import app using class `sly.app.Import`.
+We recommend to use import template for creating custom import applications using class `sly.app.Import` from Supervisely SDK.
 However, if your use case is not covered by our import template, you can create your own app **from scratch**  without the template using basic methods from Supervisely SDK.
 
-In this tutorial, we will create a simple import app that will upload images from a folder to Supervisely with a following structure:
+In this tutorial, we will create a simple import app that will upload images from a folder or archive to Supervisely with a following structure:
 
 ```text
-my_folder
-├── cat_1.jpg
-├── cat_2.jpg
-└── cat_3.jpg
+my_folder       my_archive.tar
+├── cat_1.jpg       ├── cat_1.jpg
+├── cat_2.jpg       ├── cat_2.jpg
+└── cat_3.jpg       └── cat_3.jpg
 ```
 
 You can find the above demo files in the data directory of the template-import-app repo - [here](https://github.com/supervisely-ecosystem/template-import-app/blob/master/data/)
@@ -47,7 +47,6 @@ TEAM_ID=8                     # ⬅️ change it to your team ID
 WORKSPACE_ID=349              # ⬅️ change it to your workspace ID
 PROJECT_ID=18334              # ⬅️ ID of the existing project where your data will be imported (optional)
 DATASET_ID=66325              # ⬅️ ID of the existing dataset where your data will be imported (optional)
-REMOVE_SOURCE_FILES=False     # ⬅️ remove source files from Team Files after import (optional)
 SLY_APP_DATA_DIR="results/"   # ⬅️ path to directory for advanced debug (your data will be downloaded in this directory)
 
 FOLDER="data/my_folder"       # ⬅️ path to directory with data on local machine
@@ -62,7 +61,7 @@ Find source code for this example [here](https://github.com/supervisely-ecosyste
 
 ```python
 import os
-
+import shutil
 import supervisely as sly
 from dotenv import load_dotenv
 from tqdm import tqdm
@@ -92,13 +91,13 @@ TEAM_ID = sly.env.team_id()
 WORKSPACE_ID = sly.env.workspace_id()
 PROJECT_ID = sly.env.project_id(raise_not_found=False)
 DATASET_ID = sly.env.dataset_id(raise_not_found=False)
-PATH_TO_FOLDER = sly.env.folder()
-REMOVE_SOURCE_FILES = sly.env.remove_source_files()
+PATH_TO_FOLDER = sly.env.folder(raise_not_found=False)
+PATH_TO_FILE = sly.env.file(raise_not_found=False)
 IS_PRODUCTION = sly.is_production()
 STORAGE_DIR = sly.app.get_data_dir()
 ```
 
-**Step 6. Get or create destination project and dataset**
+**Step 5. Get or create destination project and dataset**
 
 ```python
 if PROJECT_ID is None:
@@ -111,38 +110,72 @@ if DATASET_ID is None:
     dataset = api.dataset.create(project_id=project.id, name="ds0", change_name_if_conflict=True)
 else:
     dataset = api.dataset.get_info_by_id(DATASET_ID)
+    if PROJECT_ID is not None:
+        project_datasets = api.dataset.get_list(project.id)
+        if dataset not in project_datasets:
+            raise ValueError(
+                f"Dataset {dataset.name}(ID {dataset.id}) "
+                f"does not belong to project {project.name} (ID {project.id})."
+            )
 ```
 
-**Step 7. Get directory with data**
+**Step 6. Get directory with data**
+
+Download folder from Supervisely Team Files to local storage if debugging in production mode
+or get path to local folder if debugging in local mode
 
 ```python
-# download folder from Supervisely Team Files to local storage if debugging in production mode
 if IS_PRODUCTION is True:
-    # specify local path to download
-    local_folder_path = os.path.join(STORAGE_DIR, os.path.basename(PATH_TO_FOLDER))
-    # download file from Supervisely Team Files to local storage
-    api.file.download_directory(
-        team_id=TEAM_ID, remote_path=PATH_TO_FOLDER, local_save_path=local_folder_path
-    )
+    if PATH_TO_FOLDER is not None:
+        # specify local path to download
+        local_data_path = os.path.join(STORAGE_DIR, os.path.basename(PATH_TO_FOLDER))
+        # download file from Supervisely Team Files to local storage
+        api.file.download_directory(
+            team_id=TEAM_ID, remote_path=PATH_TO_FOLDER, local_save_path=local_data_path
+        )
+    elif PATH_TO_FILE is not None:
+        # specify local path to download
+        local_data_path = os.path.join(STORAGE_DIR, os.path.basename(PATH_TO_FILE))
+        # download file from Supervisely Team Files to local storage
+        api.file.download(
+            team_id=TEAM_ID, remote_path=PATH_TO_FOLDER, local_save_path=local_data_path
+        )
+    else:
+        raise ValueError("Please, specify path to folder or file in Supervisely Team Files.")
 else:
-    local_folder_path = PATH_TO_FOLDER
+    if PATH_TO_FOLDER is not None:
+        local_data_path = PATH_TO_FOLDER
+    elif PATH_TO_FILE is not None:
+        local_data_path = PATH_TO_FILE
+    else:
+        raise ValueError("Please, specify path to folder or file in Supervisely Team Files.")
 ```
 
-**Step 8. Iterate over files in directory to get images names and paths**
+**Step 7. Iterate over files in directory to get images names and paths**
+
+Check if the application was launched from file and unpack archive and get images names and paths
 
 ```python
-images_names = []
-images_paths = []
-for file in os.listdir(local_folder_path):
-    file_path = os.path.join(local_folder_path, file)
-    images_names.append(file)
-    images_paths.append(file_path)
+    local_data_dir = PATH_TO_FOLDER
+    if PATH_TO_FILE is not None:
+        local_data_dir = os.path.join(sly.app.get_data_dir(), sly.fs.get_file_name(PATH_TO_FILE))
+        shutil.unpack_archive(PATH_TO_FILE, extract_dir=local_data_dir)
+
+    images_names = []
+    images_paths = []
+    for file in os.listdir(local_data_dir):
+        file_path = os.path.join(local_data_dir, file)
+        images_names.append(file)
+        images_paths.append(file_path)
+
 ```
 
-**Step 9. Iterate over images names and paths and upload them to Supervisely**
+**Step 8. Iterate over images names and paths and upload them to Supervisely**
+
+Process images and upload them by paths to dataset on Supervisely server
+
 
 ```python
-# process images and upload them by paths
 with tqdm(total=len(images_paths)) as pbar:
     for img_name, img_path in zip(images_names, images_paths):
         try:
@@ -154,26 +187,24 @@ with tqdm(total=len(images_paths)) as pbar:
         finally:
             # update progress bar
             pbar.update(1)
-
-# remove local storage directory with files after uploading
-sly.fs.remove_dir(STORAGE_DIR)
 ```
 
-**Step 10. Set output project and clean source files (optional)**
+**Step 9. Set output project**
 
 ```python
+res_project = api.project.get_info_by_id(project.id)
 if IS_PRODUCTION is True:
-    info = api.project.get_info_by_id(project.id)
-    api.task.set_output_project(task_id=TASK_ID, project_id=info.id, project_name=info.name)
-    # remove source files from Supervisely Team Files after successful import
-    if REMOVE_SOURCE_FILES is True:
-        api.file.remove(team_id=TEAM_ID, path=PATH_TO_FOLDER)
-        sly.fs.remove_dir(PATH_TO_FOLDER)
-        sly.logger.info(msg=f"Source directory: '{PATH_TO_FOLDER}' was successfully removed.")
-    sly.logger.info(f"Result project: id={info.id}, name={info.name}")
+    # remove local storage directory with files
+    sly.fs.remove_dir(STORAGE_DIR)
+    # set output project after successful import
+    api.task.set_output_project(
+        task_id=TASK_ID, project_id=res_project.id, project_name=res_project.name
+    )
+
+sly.logger.info(f"Result project: id={res_project.id}, name={res_project.name}")
 ```
 
-**Step 11. Shutdown application after import**
+**Step 10. Shutdown application after import**
 
 ```python
 app.shutdown()
@@ -185,7 +216,7 @@ In addition to the local debug option, this template also includes setting for `
 
 ![launch.json]()
 
-This option is useful for final testing and debugging. In this case, data will be downloaded from Supervisely instance Team Files and uploaded to specified project or dataset on Supervisely platform, source folder will be removed if specified.
+This option is useful for final testing and debugging. In this case, data will be downloaded from Supervisely instance Team Files.
 
 ![Advanced debug]()
 
@@ -207,5 +238,3 @@ Output of this python program:
 Submitting an app to the Supervisely Ecosystem isn’t as simple as pushing code to github repository, but it’s not as complicated as you may think of it either.
 
 Please follow this [link](https://developer.supervisely.com/app-development/basics/add-private-app) for instructions on adding your app. We have produced a step-by-step guide on how to add your application to the Supervisely Ecosystem.
-
-![Release custom import app]()
