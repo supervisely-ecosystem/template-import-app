@@ -1,6 +1,6 @@
 import os
-from pathlib import Path
 import shutil
+from pathlib import Path
 
 import requests
 import supervisely as sly
@@ -84,7 +84,7 @@ class MyImport(sly.app.Import):
         if project_id is None:
             project = api.project.create(
                 workspace_id=context.workspace_id,
-                name=context.project_name,
+                name=context.project_name or "My Project",
                 change_name_if_conflict=True,
             )
             project_id = project.id

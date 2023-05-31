@@ -1,37 +1,41 @@
 import os
+
 import supervisely as sly
 from dotenv import load_dotenv
-from tqdm import tqdm
-
+from supervisely.app import DialogWindowError
 from supervisely.app.widgets import (
     Button,
-    Input,
-    Checkbox,
-    TeamFilesSelector,
-    ProjectThumbnail,
-    Text,
     Card,
-    SelectWorkspace,
+    Checkbox,
     Container,
+    Input,
+    ProjectThumbnail,
+    SelectWorkspace,
     SlyTqdm,
+    TeamFilesSelector,
+    Text,
 )
+from tqdm import tqdm
 
-from supervisely.app import DialogWindowError
 
-# load ENV variables for debug, has no effect in production
-load_dotenv("local.env")
+# Load ENV variables for debug, has no effect in production
+IS_PRODUCTION = sly.is_production()
+if IS_PRODUCTION is True:
+    load_dotenv("local.env")
+else:
+    load_dotenv("advanced.env")
+
 load_dotenv(os.path.expanduser("~/supervisely.env"))
 
-# create api object to communicate with Supervisely Server
-api = sly.Api.from_env()
-
-# get current context of import
+# Get ENV variables
 TASK_ID = sly.env.task_id(raise_not_found=False)
 TEAM_ID = sly.env.team_id()
 WORKSPACE_ID = sly.env.workspace_id()
 PATH_TO_FOLDER = sly.env.folder(raise_not_found=False)
-IS_PRODUCTION = sly.is_production()
 STORAGE_DIR = sly.app.get_data_dir()
+
+# create api object to communicate with Supervisely Server
+api = sly.Api.from_env()
 
 
 # Method to process folder with images and upload them to Supervisely server
@@ -59,8 +63,22 @@ def process_import(local_data_dir, project_id, dataset_id, progress):
     return res_project
 
 
-# create GUI
-if IS_PRODUCTION is True:
+# if debugging in local mode
+if IS_PRODUCTION is False:
+    app = sly.Application()
+    project = api.project.create(
+        workspace_id=WORKSPACE_ID, name="My Project", change_name_if_conflict=True
+    )
+    dataset = api.dataset.create(project_id=project.id, name="ds0", change_name_if_conflict=True)
+    if PATH_TO_FOLDER is None:
+        raise ValueError("Please, specify path to folder in local.env file")
+
+    progress = tqdm
+    res_project = process_import(PATH_TO_FOLDER, project.id, dataset.id, progress)
+    sly.logger.info(f"Result project: id={res_project.id}, name={res_project.name}")
+
+else:
+    # Create GUI
     # Step 1: Import Data
     tf_selector = TeamFilesSelector(
         team_id=TEAM_ID, multiple_selection=False, max_height=300, selection_file_type="folder"
@@ -173,20 +191,3 @@ if IS_PRODUCTION is True:
             settings_card.unlock()
             project_card.unlock()
             raise DialogWindowError(title="Import error", description=f"Error: {e}")
-
-
-# if debugging in local mode
-if IS_PRODUCTION is False:
-    app = sly.Application()
-    # get project and dataset info or create new ones if not specified initially
-    project = api.project.create(
-        workspace_id=WORKSPACE_ID, name="My Project", change_name_if_conflict=True
-    )
-    dataset = api.dataset.create(project_id=project.id, name="ds0", change_name_if_conflict=True)
-
-    if PATH_TO_FOLDER is None:
-        raise ValueError("Please, specify path to folder in local.env file")
-
-    progress = tqdm
-    res_project = process_import(PATH_TO_FOLDER, dataset.id, progress)
-    sly.logger.info(f"Result project: id={res_project.id}, name={res_project.name}")

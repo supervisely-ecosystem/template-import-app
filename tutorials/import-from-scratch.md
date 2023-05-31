@@ -10,13 +10,13 @@ description: >-
 We recommend to use import template for creating custom import applications using class `sly.app.Import` from Supervisely SDK.
 However, if your use case is not covered by our import template, you can create your own app **from scratch**  without the template using basic methods from Supervisely SDK.
 
-In this tutorial, we will create a simple import app that will upload images from a folder or archive to Supervisely with a following structure:
+In this tutorial, we will create a simple import app with GUI that will upload images from a folder to Supervisely with a following structure:
 
 ```text
-my_folder       my_archive.tar
-├── cat_1.jpg       ├── cat_1.jpg
-├── cat_2.jpg       ├── cat_2.jpg
-└── cat_3.jpg       └── cat_3.jpg
+my_folder
+├── cat_1.jpg
+├── cat_2.jpg
+└── cat_3.jpg
 ```
 
 You can find the above demo files in the data directory of the template-import-app repo - [here](https://github.com/supervisely-ecosystem/template-import-app/blob/master/data/)
@@ -42,15 +42,11 @@ Open `local.env` and set up environment variables by inserting your values here 
 For this example, we will use the following environment variables:
 
 ```python
-TASK_ID=33572                 # ⬅️ requires to use advanced debugging, comment for local debugging
 TEAM_ID=8                     # ⬅️ change it to your team ID
 WORKSPACE_ID=349              # ⬅️ change it to your workspace ID
-PROJECT_ID=18334              # ⬅️ ID of the existing project where your data will be imported (optional)
-DATASET_ID=66325              # ⬅️ ID of the existing dataset where your data will be imported (optional)
-SLY_APP_DATA_DIR="results/"   # ⬅️ path to directory for advanced debug (your data will be downloaded in this directory)
+SLY_APP_DATA_DIR="results/"   # ⬅️ path to directory for advanced debug (your data will be downloaded to this directory)
 
 FOLDER="data/my_folder"       # ⬅️ path to directory with data on local machine
-# FOLDER="/data/my_folder"      # ⬅️ path to directory with data on Supervisely Team Files
 ```
 
 ## Step 2. How to write an import script
@@ -61,26 +57,52 @@ Find source code for this example [here](https://github.com/supervisely-ecosyste
 
 ```python
 import os
-import shutil
+
 import supervisely as sly
 from dotenv import load_dotenv
+from supervisely.app import DialogWindowError
+from supervisely.app.widgets import (
+    Button,
+    Card,
+    Checkbox,
+    Container,
+    Input,
+    ProjectThumbnail,
+    SelectWorkspace,
+    SlyTqdm,
+    TeamFilesSelector,
+    Text,
+)
 from tqdm import tqdm
 ```
 
 **Step 2. Load environment variables**
 
-Load ENV variables for debug, has no effect in production
+Load ENV variables for debug, has no effect in production.
 
 ```python
-load_dotenv("local.env")
+IS_PRODUCTION = sly.is_production()
+if IS_PRODUCTION is True:
+    load_dotenv("local.env")
+else:
+    load_dotenv("advanced.env")
+
 load_dotenv(os.path.expanduser("~/supervisely.env"))
+
+# Get ENV variables
+TASK_ID = sly.env.task_id(raise_not_found=False)
+TEAM_ID = sly.env.team_id()
+WORKSPACE_ID = sly.env.workspace_id()
+PATH_TO_FOLDER = sly.env.folder(raise_not_found=False)
+STORAGE_DIR = sly.app.get_data_dir()
 ```
 
-**Step 3. Init app object and api object to communicate with Supervisely Server**
+**Step 3. Initialize API object**
+
+Create API object to communicate with Supervisely Server. Loads from `supervisely.env` file
 
 ```python
 api = sly.Api.from_env()
-app = sly.Application()
 ```
 
 **Step 4. Get environment variables**
@@ -97,83 +119,202 @@ IS_PRODUCTION = sly.is_production()
 STORAGE_DIR = sly.app.get_data_dir()
 ```
 
-**Step 5. Get or create destination project and dataset**
+**Step 5. Write code for local debugging**
+
+1. Check if we are in debug mode (`IS_PRODUCTION = False`) and create `app` object.
+2. Create project and dataset.
+3. Check that `PATH_TO_FOLDER` is not empty.
+4. Create `progress` object for tqdm.
+5. Call `process_import` function (See **Step 8** below).
+6. Print result project.
 
 ```python
-if PROJECT_ID is None:
+if IS_PRODUCTION is False:
+    app = sly.Application()
     project = api.project.create(
-        workspace_id=WORKSPACE_ID, name="My Project", change_name_if_conflict=True
+        workspace_id=WORKSPACE_ID,
+        name="My Project",
+        change_name_if_conflict=True
     )
+    dataset = api.dataset.create(
+        project_id=project.id,
+        name="ds0",
+        change_name_if_conflict=True
+    )
+    if PATH_TO_FOLDER is None:
+        raise ValueError("Please, specify path to folder in local.env file")
+
+    progress = tqdm
+    res_project = process_import(PATH_TO_FOLDER, project.id, dataset.id, progress)
+    sly.logger.info(f"Result project: id={res_project.id}, name={res_project.name}")
+```
+
+**Step 6. Create GUI app**
+
+In this step we will build GUI for our import app using [Supervisely widgets](https://developer.supervisely.com/app-development/widgets).
+
+We will breakdown our GUI into 4 steps:
+
+1. File selector to select folder with data.
+2. Import settings.
+3. Destination project settings.
+4. Output card with button to start import and info about result project.
+
+Let's take a closer look at each step:
+
+1. Create FileSelector widget to select folder with data and place it into Card widget.
+2. Create Checkbox widget to select if we want to remove source files after successful import and place it into Card widget.
+3. Create workspace selector and input widget to enter project name. Combine those widgets into Container widget and place it into Card widget. Using workspace selector we can select team and workspace where we want to create project in which data will be imported.
+4. Create Button widget to start import process.
+5. Create output text to show warnings and info messages.
+6. Create progress widget to show progress of import process.
+7. Create ProjectThumbnail to show result project with link to it.
+8. Combine all button, output text, progress and project thumbnail .
+9. Create layout by combining all created cards into one container.
+10. Initialize app object with layout as a parameter.
+
+```python
 else:
-    project = api.project.get_info_by_id(PROJECT_ID)
-if DATASET_ID is None:
-    dataset = api.dataset.create(project_id=project.id, name="ds0", change_name_if_conflict=True)
-else:
-    dataset = api.dataset.get_info_by_id(DATASET_ID)
-    if PROJECT_ID is not None:
-        project_datasets = api.dataset.get_list(project.id)
-        if dataset not in project_datasets:
-            raise ValueError(
-                f"Dataset {dataset.name}(ID {dataset.id}) "
-                f"does not belong to project {project.name} (ID {project.id})."
+    # Create GUI
+    # Step 1: Import Data
+    tf_selector = TeamFilesSelector(
+        team_id=TEAM_ID, multiple_selection=False, max_height=300, selection_file_type="folder"
+    )
+    data_card = Card(
+        title="Select Data",
+        description="Check folder or file in File Browser to import it",
+        content=tf_selector,
+    )
+
+    # Step 2: Settings
+    remove_source_files = Checkbox("Remove source files after successful import", checked=True)
+    settings_card = Card(
+        title="Settings", description="Select import settings", content=remove_source_files
+    )
+
+    # Step 3: Create Project
+    ws_selector = SelectWorkspace(default_id=WORKSPACE_ID, team_id=TEAM_ID)
+    output_project_name = Input(value="My Project")
+    project_creator = Container(widgets=[ws_selector, output_project_name])
+    project_card = Card(
+        title="Create Project",
+        description="Select destination team, workspace and enter project name",
+        content=project_creator,
+    )
+
+    # Step 4: Output
+    start_import_btn = Button(text="Start Import")
+    output_text = Text()
+    output_text.hide()
+    output_progress = SlyTqdm()
+    output_progress.hide()
+    output_project_thumbnail = ProjectThumbnail()
+    output_project_thumbnail.hide()
+    output_container = Container(
+        widgets=[output_project_thumbnail, output_text, output_progress, start_import_btn]
+    )
+    output_card = Card(
+        title="Output", description="Press button to start import", content=output_container
+    )
+
+    # Create app object
+    layout = Container(widgets=[data_card, settings_card, project_card, output_card])
+    app = sly.Application(layout=layout)
+
+    @start_import_btn.click
+    def start_import():
+        ...
+```
+
+**Step 7. Add button click handler to start import process**
+
+In this step we will create button click handler.
+We will get state of all widgets and call `process_import` function (See **Step 8** below).
+
+```python
+ @start_import_btn.click
+ def start_import():
+     try:
+        # Lock Cards to prevent changing settings during import
+        data_card.lock()
+        settings_card.lock()
+        project_card.lock()
+        output_text.hide()
+
+        # Get project name from input widget
+        project_name = output_project_name.get_value()
+        if project_name is None or project_name == "":
+            output_text.set(text="Please, enter project name", status="error")
+            output_text.show()
+            return
+
+        # Get remote path to folder from FileSelector widget
+        PATH_TO_FOLDER = tf_selector.get_selected_paths()
+        if len(PATH_TO_FOLDER) > 0:
+            PATH_TO_FOLDER = PATH_TO_FOLDER[0]
+            # Specify local path to download
+            local_data_path = os.path.join(
+                STORAGE_DIR, os.path.basename(PATH_TO_FOLDER)
             )
-```
+            # Download file from Supervisely Team Files to local storage
+            api.file.download_directory(
+                team_id=TEAM_ID, remote_path=PATH_TO_FOLDER, local_save_path=local_data_path
+            )
+        else:
+            # If folder is not selected, show error message
+            output_text.set(
+                text="Please, specify path to folder in Supervisely Team Files", status="error"
+            )
+            output_text.show()
+            return
 
-**Step 6. Get directory with data**
-
-Download folder from Supervisely Team Files to local storage if debugging in production mode
-or get path to local folder if debugging in local mode
-
-```python
-if IS_PRODUCTION is True:
-    if PATH_TO_FOLDER is not None:
-        # specify local path to download
-        local_data_path = os.path.join(STORAGE_DIR, os.path.basename(PATH_TO_FOLDER))
-        # download file from Supervisely Team Files to local storage
-        api.file.download_directory(
-            team_id=TEAM_ID, remote_path=PATH_TO_FOLDER, local_save_path=local_data_path
+        # Create project and dataset
+        project = api.project.create(
+            workspace_id=WORKSPACE_ID, name=project_name, change_name_if_conflict=True
         )
-    elif PATH_TO_FILE is not None:
-        # specify local path to download
-        local_data_path = os.path.join(STORAGE_DIR, os.path.basename(PATH_TO_FILE))
-        # download file from Supervisely Team Files to local storage
-        api.file.download(
-            team_id=TEAM_ID, remote_path=PATH_TO_FOLDER, local_save_path=local_data_path
+        dataset = api.dataset.create(
+            project_id=project.id, name="ds0", change_name_if_conflict=True
         )
-    else:
-        raise ValueError("Please, specify path to folder or file in Supervisely Team Files.")
-else:
-    if PATH_TO_FOLDER is not None:
-        local_data_path = PATH_TO_FOLDER
-    elif PATH_TO_FILE is not None:
-        local_data_path = PATH_TO_FILE
-    else:
-        raise ValueError("Please, specify path to folder or file in Supervisely Team Files.")
+
+        # Show import progress
+        output_progress.show()
+
+        # Read data from local storage and import it to project
+        res_project = process_import(local_data_path, project.id, dataset.id, output_progress)
+
+        # Remove source files from Supervisely Team Files if option is checked
+        if remove_source_files.is_checked():
+            api.file.remove_dir(TEAM_ID, PATH_TO_FOLDER)
+
+         # Set output project after successful import
+         api.task.set_output_project(
+             task_id=TASK_ID, project_id=res_project.id, project_name=res_project.name
+         )
+
+         # Hide progress after successful import
+         output_progress.hide()
+
+         # Show result project with info message
+         output_project_thumbnail.set(info=res_project)
+         output_project_thumbnail.show()
+         output_text.set(text="Import is finished", status="success")
+         output_text.show()
+         
+         # Disable button after successful import
+         start_import_btn.disable()
+
+         # Log result project
+         sly.logger.info(f"Result project: id={res_project.id}, name={res_project.name}")
+     except Exception as e:
+         data_card.unlock()
+         settings_card.unlock()
+         project_card.unlock()
+         raise DialogWindowError(title="Import error", description=f"Error: {e}")
 ```
 
-**Step 7. Iterate over files in directory to get images names and paths**
-
-Check if the application was launched from file and unpack archive and get images names and paths
-
-```python
-    local_data_dir = PATH_TO_FOLDER
-    if PATH_TO_FILE is not None:
-        local_data_dir = os.path.join(sly.app.get_data_dir(), sly.fs.get_file_name(PATH_TO_FILE))
-        shutil.unpack_archive(PATH_TO_FILE, extract_dir=local_data_dir)
-
-    images_names = []
-    images_paths = []
-    for file in os.listdir(local_data_dir):
-        file_path = os.path.join(local_data_dir, file)
-        images_names.append(file)
-        images_paths.append(file_path)
-
-```
-
-**Step 8. Iterate over images names and paths and upload them to Supervisely**
+**Step 8. Process import function**
 
 Process images and upload them by paths to dataset on Supervisely server
-
 
 ```python
 with tqdm(total=len(images_paths)) as pbar:
