@@ -1,12 +1,14 @@
 {
-  "name": "Custom Import from File",
-  "description": "Demonstrates how to make custom import supervisely app, that imports data from files",
-  "categories": ["development"],
-  "main_script": "src/main.py",
-  "modal_template": "src/modal.html",
-  "headless": true,
+  "name": "Custom Import App",
+  "description": "Demonstrates how to make custom import supervisely app using template",
+  "type": "app",
+  "version": "2.0.0",
+  "categories": ["import", "images"],
+  "docker_image": "supervisely/base-py-sdk:6.72.23",
   "icon": "https://user-images.githubusercontent.com/48913536/206195024-712f5cf9-cfdb-4cf4-8ee9-71cd191081c2.png",
   "poster": "https://user-images.githubusercontent.com/48913536/207625734-ccef5e02-911a-4ef6-b58a-d664891cc4b2.png",
+  "entrypoint": "python -m uvicorn src.main:app --host 0.0.0.0 --port 8000",
+  "port": 8000,
   "context_menu": {
     "context_category": "Import",
     "target": [
