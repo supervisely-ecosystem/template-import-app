@@ -74,10 +74,6 @@ def upload_images(api, dataset_id, images_names, images_paths, progress):
 
 
 class MyImport(sly.app.Import):
-    # def generate_custom_settings(self):
-    #   custom_checkbox = sly.app.widgets.Checkbox("my_checkbox")
-    #   return sly.app.widgets.Container(widgets=[custom_checkbox])
-
     def process(self, context: sly.app.Import.Context):
         # create api object to communicate with Supervisely Server
         api = sly.Api.from_env()
@@ -102,10 +98,11 @@ class MyImport(sly.app.Import):
 
         if context.is_directory:
             images_names, images_paths = process_folder(context.path)
-        elif context.is_archive:
-            images_names, images_paths = process_archive(context.path)
-        elif context.is_text_file:
-            images_names, images_paths = process_text_file(context.path)
+        else:
+            if sly.fs.get_file_ext(context.path) == ".txt":
+                images_names, images_paths = process_text_file(context.path)
+            else:
+                images_names, images_paths = process_archive(context.path)
         upload_images(api, dataset_id, images_names, images_paths, context.progress)
         return project_id
 
