@@ -7,7 +7,10 @@ import supervisely as sly
 from dotenv import load_dotenv
 
 # load ENV variables for debug, has no effect in production
-load_dotenv("local.env")
+if sly.is_production():
+    load_dotenv("advanced.env")
+else:
+    load_dotenv("local.env")
 load_dotenv(os.path.expanduser("~/supervisely.env"))
 
 
