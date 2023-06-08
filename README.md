@@ -1,26 +1,38 @@
 ---
 description: >-
-  A step-by-step tutorial of how to use import template to import data from folder.
+    A step-by-step tutorial of how to create custom import app using import template from SDK class `sly.app.Import`.
 ---
 
-# Import data from folder
+# Create import app from template
 
 ## Introduction
 
-In this tutorial, we will create a simple import app that will upload images from a folder to Supervisely using import app template from SDK with a following structure:
+In this tutorial, we will create a simple import app that will upload images from a folder, archive or text file to Supervisely using import app template from SDK with a following structure:
+
+**folder and archive structure:**
 
 ```text
-my_folder
-├── cat_1.jpg
-├── cat_2.jpg
-└── cat_3.jpg
+📂my_folder         🗃️ my_archive.zip
+┣ 🖼️cat_1.jpg       ┣ 🖼️cat_1.jpg
+┣ 🖼️cat_2.jpg       ┣ 🖼️cat_2.jpg
+┗ 🖼️cat_3.jpg       ┗ 🖼️cat_3.jpg
 ```
 
-<img src="https://github.com/supervisely-ecosystem/template-import-app/assets/48913536/49f242ac-328c-4646-ba5b-60c60f5f755a">
+**text file:**
+
+```text
+https://github.com/supervisely-ecosystem/demo-data-for-import-template/releases/download/images/pexels-couleur-2317904.jpg
+https://github.com/supervisely-ecosystem/demo-data-for-import-template/releases/download/images/pexels-kammeran-gonzalezkeola-7925859.jpg
+https://github.com/supervisely-ecosystem/demo-data-for-import-template/releases/download/images/pexels-stijn-dijkstra-7177188.jpg
+https://github.com/supervisely-ecosystem/demo-data-for-import-template/releases/download/images/pexels-taryn-elliott-3889728.jpg
+https://github.com/supervisely-ecosystem/demo-data-for-import-template/releases/download/images/pexels-taryn-elliott-9565787.jpg/home/paul/projects/template-import-app/results
+```
 
 You can find the above demo folder in the data directory of the template-import-app repo - [here](https://github.com/supervisely-ecosystem/template-import-app/blob/master/data/)
 
-We will go through the following steps:
+<img src="https://github.com/supervisely-ecosystem/template-import-app/assets/48913536/de4a23b0-0c86-45f8-8431-e292bf9ecdf9">
+
+**We will go through the following steps:**
 
 [**Step 1.**](#step-1-how-to-debug-import-app) How to debug import app.
 
@@ -30,22 +42,32 @@ We will go through the following steps:
 
 [**Step 4.**](#step-4-how-to-run-it-in-supervisely) How to run it in Supervisely.
 
-Everything you need to reproduce [this tutorial is on GitHub](https://github.com/supervisely-ecosystem/template-import-app): [source code](https://github.com/supervisely-ecosystem/template-import-app/blob/master/src/import-folder.py).
+Everything you need to reproduce [this tutorial is on GitHub](https://github.com/supervisely-ecosystem/template-import-app): [source code](https://github.com/supervisely-ecosystem/template-import-app/blob/master/src/main.py).
 
 Before we begin, please clone the project and set up the working environment - [here is a link with a description of the steps](/README.md#set-up-an-environment-for-development).
 
 ## Step 1. How to debug import app
 
-Open `local.env` and set up environment variables by inserting your values here for debugging. Learn more about environment variables in our [guide](https://developer.supervisely.com/getting-started/environment-variables)
+Open `local.env` and `advanced.env` files and set up environment variables by inserting your values here for debugging.
+
+Learn more about environment variables in our [guide](https://developer.supervisely.com/getting-started/environment-variables)
 
 For this example, we will use the following environment variables:
 
 **local.env:**
 
 ```python
-TEAM_ID=8                     # ⬅️ change it to your team ID
-WORKSPACE_ID=349              # ⬅️ change it to your workspace ID
-FOLDER="data/my_folder"       # ⬅️ path to directory with data on local machine
+TEAM_ID=8                      # ⬅️ change it to your team ID
+WORKSPACE_ID=349               # ⬅️ change it to your workspace ID
+
+# Optional. Specify one of the following variables:
+FOLDER="data/my_folder"        # ⬅️ path to directory with data
+# FILE="data/my_archive.zip"   # ⬅️ path to archive with data
+# FILE="data/my_file.txt"      # ⬅️ path to text file with links to images
+
+# Optional. Specify following variables if you want to import data to existing:
+# PROJECT_ID=20811             # ⬅️ put your value here
+# DATASET_ID=64686             # ⬅️ put your value here | requires PROJECT_ID
 ```
 
 **advanced.env:**
@@ -57,15 +79,32 @@ WORKSPACE_ID=349                  # ⬅️ change it to your workspace ID
 SLY_APP_DATA_DIR="results/"       # ⬅️ path to directory for local debugging
 
 # Optional. Specify one of the following variables if you want to simulate import from:
-# FOLDER = "/data/my_folder"      # ⬅️ path to folder in Team Files
-# FILE = "/data/my_archive.zip"   # ⬅️ path to File in Team Files
-# PROJECT_ID = 20811              # ⬅️ put your value here
-# DATASET_ID = 64686              # ⬅️ put your value here | requires PROJECT_ID
+# FOLDER="/data/my_folder"      # ⬅️ path to directory with data
+# FILE="/data/my_archive.zip"   # ⬅️ path to archive with data
+# FILE="data/my_file.txt"       # ⬅️ path to text file with links to images
+
+# or one of the following variables if you want to import data to existing:
+# PROJECT_ID=20811              # ⬅️ put your value here
+# DATASET_ID=64686              # ⬅️ put your value here | requires PROJECT_ID
 ```
+
+In order to get `TASK_ID` you need to run [`While True Script`](https://ecosystem.supervisely.com/apps/while-true-script) app on the agent specifed in `supervisely.env`
+
+<!-- SCREENSHOT GIF HERE -->
+
+![copy-task-id](https://github.com/supervisely-ecosystem/template-import-app/assets/48913536/e6a6ac90-b239-47fd-b099-90fd51e818dd)
+
+Please note that the path you specify in the `SLY_APP_DATA_DIR` variable will be used for saving application results and temporary files (temporary files will be removed at the end).
+
+For example:
+- path on your local computer could be `/Users/admin/Downloads/`
+- path in the current project folder on your local computer could be `results/`
+
+> Don't forget to add this path to `.gitignore` to exclude it from the list of files tracked by Git.
 
 ## Step 2. How to write an import script
 
-Find source code for this example [here](https://github.com/supervisely-ecosystem/template-import-app/blob/master/src/import-folder.py)
+Find source code for this example [here](https://github.com/supervisely-ecosystem/template-import-app/blob/master/src/main.py)
 
 **Step 1. Import libraries**
 
@@ -150,15 +189,20 @@ app = MyImport()
 app.run()
 ```
 
+**Output of this python program in local debug mode:**
+
+```text
+{"message": "Application is running on localhost in development mode", "timestamp": "2023-06-08T12:11:38.929Z", "level": "info"}
+{"message": "Application PID is 29901", "timestamp": "2023-06-08T12:11:38.929Z", "level": "info"}
+100%|██████████████████████████████████████████████████████████████████████████████████████████████| 3/3 [00:01<00:00,  1.97it/s]
+{"message": "Result project: id=22913, name=My Project_004", "timestamp": "2023-06-08T12:11:42.674Z", "level": "info"}
+```
+
 ## Step 3. Advanced debug
 
-In addition to the local debug option, this template also includes setting for `Advanced debugging`.
+Advanced debug is for final testing and debugging. In this case, data will be downloaded from Supervisely instance Team Files and uploaded to specified project or dataset on Supervisely platform, source data will be removed if specified.
 
-![launch.json]()
-
-This option is useful for final testing and debugging. In this case, data will be downloaded from Supervisely instance Team Files and uploaded to specified project or dataset on Supervisely platform, source folder will be removed if specified.
-
-![Advanced debug]()
+![Advanced debug](https://github.com/supervisely-ecosystem/template-import-app/assets/48913536/aab1c0dd-a4a5-41ab-bab0-b5691460a55b)
 
 Output of this python program:
 
