@@ -59,6 +59,17 @@ def process_text_file(path_to_file, progress):
     return images_names, images_paths
 
 
+def process_data(context):
+    path = os.path.join(context.path, os.listdir(context.path)[0])
+    if os.path.isdir(path):
+        images_names, images_paths = process_folder(path)
+    elif sly.fs.get_file_ext(path) == ".txt":
+        images_names, images_paths = process_text_file(path, context.progress)
+    else:
+        images_names, images_paths = process_archive(path)
+    return images_names, images_paths
+
+
 def upload_images(api, dataset_id, images_names, images_paths, progress):
     # process images and upload them by paths
     with progress(total=len(images_paths)) as pbar:
@@ -96,14 +107,12 @@ class MyImport(sly.app.Import):
             )
             dataset_id = dataset.id
 
-        if context.is_directory:
-            images_names, images_paths = process_folder(context.path)
-        else:
-            if sly.fs.get_file_ext(context.path) == ".txt":
-                images_names, images_paths = process_text_file(context.path)
-            else:
-                images_names, images_paths = process_archive(context.path)
+        # process images and upload them by paths
+        images_names, images_paths = process_data(context)
         upload_images(api, dataset_id, images_names, images_paths, context.progress)
+
+        # clean local data dir after successful import
+        sly.fs.remove_dir(context.path)
         return project_id
 
 

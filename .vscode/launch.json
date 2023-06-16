@@ -5,13 +5,21 @@
             "name": "Local",
             "type": "python",
             "request": "launch",
-            "program": "${file}",
-            "console": "integratedTerminal",
+            "module": "uvicorn",
+            "args": [
+                "src.main:app",
+                "--host",
+                "0.0.0.0",
+                "--port",
+                "8000",
+                "--ws",
+                "websockets",
+            ],
+            "jinja": true,
             "justMyCode": true,
             "env": {
                 "PYTHONPATH": "${workspaceFolder}:${PYTHONPATH}",
                 "ENV": "development",
-
             }
         },
         {
@@ -27,7 +35,6 @@
                 "8000",
                 "--ws",
                 "websockets",
-                "--reload"
             ],
             "jinja": true,
             "justMyCode": true,
