@@ -40,19 +40,15 @@ You can find the above demo folder in the data directory of the template-import-
 
 ## Tutorial content
 
-- [Create import app from template](#create-import-app-from-template)
-  - [Introduction](#introduction)
-  - [Data example](#data-example)
-  - [Tutorial content](#tutorial-content)
-  - [Step 1. How to debug import app](#step-1-how-to-debug-import-app)
-  - [Step 2. Illustrative example of practical use case](#step-2-illustrative-example-of-practical-use-case)
-  - [Step 3. How to write an import script](#step-3-how-to-write-an-import-script)
-  - [Step 4. Advanced debug](#step-4-advanced-debug)
-  - [`sly.app.Import` reference](#slyappimport-reference)
+* [Step 1. How to debug import app](#step-1-how-to-debug-import-app)
+* [Step 2. Illustrative example of practical use case](#step-2-illustrative-example-of-practical-use-case)
+* [Step 3. How to write an import script](#step-3-how-to-write-an-import-script)
+* [Step 4. Advanced debug](#step-4-advanced-debug)
+* [**`sly.app.Import`** reference](#slyappimport-reference)
 
 Everything you need to reproduce [this tutorial is on GitHub](https://github.com/supervisely-ecosystem/template-import-app): [main.py](https://github.com/supervisely-ecosystem/template-import-app/blob/master/src/main.py).
 
-Before we begin, please clone the project and set up the working environment - [here is a link with a description of the steps](/README.md#set-up-an-environment-for-development).
+Before we begin, please clone the project and set up the working environment - [here is a link with a description of the steps](https://developer.supervisely.com/app-development/create-import-app/overview#set-up-an-environment-for-the-development).
 
 ## Step 1. How to debug import app
 
@@ -98,7 +94,7 @@ SLY_APP_DATA_DIR="input/"
 
 In local debug mode checkbox to remove source files after import has no effect, so it is disabled and unchecked. In production mode, if you check this box, the source data will be deleted from Supervisely server after import.
 
-In this step you can add your custom settings using [Supervisely widgets](../widgets/README.md). We will not be adding any custom settings in this example. You can learn more about how to add custom settings in **[sly.app.Import reference](#slyappimport-reference)** section.
+In this step you can add your custom settings using [Supervisely widgets](https://developer.supervisely.com/app-development/widgets). We will not be adding any custom settings in this example. You can learn more about how to add custom settings in **[sly.app.Import reference](#slyappimport-reference)** section.
 
 <img src="https://github.com/supervisely-ecosystem/template-import-app/assets/48913536/98af89c2-efbb-4c50-a1cc-ed54cba9043d">
 
@@ -402,7 +398,7 @@ Is on agent: False
 
 **method add_custom_settings(self)**
 
-You can add custom settings to the import template using the `add_custom_settings(self)` method. This method should return any [Widget](../widgets/README.md). If you want to add multiple widgets, you can return a widget [`Container`](../widgets/layouts-and-containers/container.md).
+You can add custom settings to the import template using the `add_custom_settings(self)` method. This method should return any [Widget](https://developer.supervisely.com/app-development/widgets). If you want to add multiple widgets, you can return a widget [`Container`](https://developer.supervisely.com/app-development/widgets/layouts-and-containers/container).
 
 ```python
 class MyImport(sly.app.Import):
