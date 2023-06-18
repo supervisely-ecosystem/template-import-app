@@ -9,130 +9,6 @@ description: >-
 
 In this tutorial, we will create a simple import app that will upload images from a folder, archive or `.txt` file to Supervisely using import app template from SDK.
 
-**About `sly.app.Import` class**
-
-Import template has GUI out of the box and allows you to add custom settings to your import app.
-
-**GUI consists of 4 steps:**
-
-1. Select data to import
-2. Select import settings
-3. Select destination team, workspace and project
-4. Output information
-
-**App screenshot**
-
-<img src="https://github.com/supervisely-ecosystem/template-import-app/assets/48913536/2910c05d-92c3-496b-9583-2cea8affd3b1">
-
-You can customize `sly.app.Import` class by passing parameters to the constructor:
-
-**allowed_project_types**
-
-Pass list of project types that you want to allow for import. If you pass None, all project types will be allowed in project selector.
-Available project types: `["images", "videos", "volumes", "pointclouds", "pointcloud_episodes"]`
-
-```python
-app = MyImport(allowed_project_types=[sly.ProjectType.Volumes])
-```
-
-<img src="https://github.com/supervisely-ecosystem/template-import-app/assets/48913536/437cf96b-147a-4f71-adeb-488577c63305">
-
-**allowed_destination_options**
-
-Pass list of destination options that you want to allow for import. If you pass None, all destination options will be allowed.
-Allowed destinations: `["new_project", "existing_project", "existing_dataset"]`
-
-```python
-app = MyImport(allowed_destination_options=["New Project"])
-```
-
-<img src="https://github.com/supervisely-ecosystem/template-import-app/assets/48913536/7d9ad0ad-3914-48bd-90c3-87e920dfda10">
-
-```python
-app = MyImport(allowed_destination_options=["New Project", "Existing Project"])
-
-```
-
-<img src="https://github.com/supervisely-ecosystem/template-import-app/assets/48913536/f676b45b-9cd7-4339-abee-92f0076ad801">
-
-**allowed_data_type**
-
-Pass list of data types that you want to allow for import. If you pass None, all data types will be allowed.
-Allowed data types: `["folder", "file"]`
-
-```python
-app = MyImport(allowed_data_type="folder")
-```
-
-<img src="https://github.com/supervisely-ecosystem/template-import-app/assets/48913536/d6b56204-a684-48fa-b880-b0616e10ab44">
-
-**`sly.app.Import` class has 2 methods:**
-
-* process()
-* add_custom_settings()
-
-**method process()**
-
-Main method where you implement your import logic, process and upload data to Supervisely server. This method must return project ID
-
-```python
-def process(self, context: sly.app.Import.Context):
-    # get or create project
-    project_id = context.project_id
-    if project_id is None:
-        project = api.project.create(
-            workspace_id=context.workspace_id,
-            name=context.project_name or "My Project",
-            change_name_if_conflict=True,
-        )
-        project_id = project.id
-    # implement your import logic here
-    return project_id
-```
-
-`context` is passed as an argument to the `process` method and the `context` object will be created automatically when you execute import script. `context` contains all the necessary information about the import process. 
-
-You can get the following information from the context:
-
-- `Team ID` - ID of the destination Team
-- `Workspace ID` - ID of the destination Workspace
-- `Project ID` - ID of an existing project to which data will be imported. None if you import data to a new project
-- `Dataset ID` - ID of an existing dataset to which data will be imported. None if you import data to a new dataset
-- `Path` - Path to your data on the local machine.
-- `Project name` - name of the project provided in the GUI if import data to new project
-- `Progress` - `tqdm` progress that you can use in your app to update progress bar
-- `Is on agent` - Shows if your data is located on the agent or not
-
-```python
-class MyImport(sly.app.Import):
-    def process(self, context: sly.app.Import.Context):
-        print(context)
-        # implement your import logic here
-```
-
-Output:
-
-```text
-Team ID: 8
-Workspace ID: 349
-Project ID: 8534
-Dataset ID: 22852
-Path: /data/my_file.txt
-Project name: ""
-Is on agent: False
-```
-
-**method add_custom_settings()**
-
-You can add custom settings to the import template using the [`add_custom_settings`](./overview.md#slyappimport-custom-settings-in-gui-of-your-app) method. This method should return any [Widget](../widgets/README.md). If you want to add multiple widgets, you can return a widget [`Container`](../widgets/layouts-and-containers/container.md).
-
-```python
-def add_custom_settings(self) -> List[Widget]:
-    self.ann_checkbox = sly.app.widgets.Checkbox("Upload annotations", True)
-    # return widget
-    return self.ann_checkbox
-```
-
 ## Data example
 
 We prepared an app that can import images from: folder, archive or `.txt` file to Supervisely server.
@@ -161,15 +37,20 @@ You can find the above demo folder in the data directory of the template-import-
 
 <img src="https://github.com/supervisely-ecosystem/template-import-app/assets/48913536/de4a23b0-0c86-45f8-8431-e292bf9ecdf9">
 
+
 ## Tutorial content
 
-[**Step 1.**](#step-1-how-to-debug-import-app) How to debug import app.
+- [Create import app from template](#create-import-app-from-template)
+  - [Introduction](#introduction)
+  - [Data example](#data-example)
+  - [Tutorial content](#tutorial-content)
+  - [Step 1. How to debug import app](#step-1-how-to-debug-import-app)
+  - [Step 2. Illustrative example of practical use case](#step-2-illustrative-example-of-practical-use-case)
+  - [Step 3. How to write an import script](#step-3-how-to-write-an-import-script)
+  - [Step 4. Advanced debug](#step-4-advanced-debug)
+  - [`sly.app.Import` reference](#slyappimport-reference)
 
-[**Step 2**](#step-2-how-to-write-an-import-script) How to write an import script.
-
-[**Step 3.**](#step-3-advanced-debug) Advanced debug.
-
-Everything you need to reproduce [this tutorial is on GitHub](https://github.com/supervisely-ecosystem/template-import-app): [source code](https://github.com/supervisely-ecosystem/template-import-app/blob/master/src/main.py).
+Everything you need to reproduce [this tutorial is on GitHub](https://github.com/supervisely-ecosystem/template-import-app): [main.py](https://github.com/supervisely-ecosystem/template-import-app/blob/master/src/main.py).
 
 Before we begin, please clone the project and set up the working environment - [here is a link with a description of the steps](/README.md#set-up-an-environment-for-development).
 
@@ -197,7 +78,51 @@ Learn more about environment variables in our [guide](https://developer.supervis
 
 For advanced debugging with GUI see **[Step 3](#step-3-advanced-debug)**
 
-## Step 2. How to write an import script
+## Step 2. Illustrative example of practical use case
+
+This illustrative example showcasing a simple use case, by leveraging its out-of-the-box graphical user interface (GUI), developers can focus on implementing their own data processing code without having to worry about the underlying infrastructure. The GUI is organized into four sequential steps, each step is designed to guide users through all the necessary options and configurations for import.
+
+In this example we will use local debug mode, and upload files from the local data folder to Supervisely server.
+
+**Step 1. Select Data**
+
+You can specify data folder in `local.env` file. By default it is set to `input/` folder in the root of the project. Place data that you want to import inside this folder.
+
+```python
+SLY_APP_DATA_DIR="input/"
+```
+
+<img src="https://github.com/supervisely-ecosystem/template-import-app/assets/48913536/8da1650d-0089-4887-881c-1169b21b2433">
+
+**Step 2. Settings**
+
+In local debug mode checkbox to remove source files after import has no effect, so it is disabled and unchecked. In production mode, if you check this box, the source data will be deleted from Supervisely server after import.
+
+In this step you can add your custom settings using [Supervisely widgets](../widgets/README.md). We will not be adding any custom settings in this example. You can learn more about how to add custom settings in **[sly.app.Import reference](#slyappimport-reference)** section.
+
+<img src="https://github.com/supervisely-ecosystem/template-import-app/assets/48913536/98af89c2-efbb-4c50-a1cc-ed54cba9043d">
+
+**Step 3. Destination Project**
+
+In this step you can select destination project, by default **`New Project`** tab is selected. In this tab you can select destination: Team, Workspace, and enter new project's name. If you want to import data to existing project or existing dataset, you can select corresponding tab in GUI.
+
+<img src="https://github.com/supervisely-ecosystem/template-import-app/assets/48913536/0664a2b2-4176-4b23-b0c7-e3b8af3e892e">
+
+**Step 4. Output**
+
+This step contains **Start Import** button and information about the selections you made in previous steps:
+
+1) Path to source data that will be imported
+2) Destination where data will be imported
+3) State of the checkbox to remove source data after import
+
+<img src="https://github.com/supervisely-ecosystem/template-import-app/assets/48913536/1740d473-05d1-4916-a39d-836f5938b1f3">
+
+If your import implementation code is correct, data has been successfully imported and there are no errors, you will see project thumbnail with the link to the project on Supervisely server.
+
+<img src="https://github.com/supervisely-ecosystem/template-import-app/assets/48913536/41ef7062-45a5-4c2f-8936-f7b4b3aefc54">
+
+## Step 3. How to write an import script
 
 Find source code for this example [here](https://github.com/supervisely-ecosystem/template-import-app/blob/master/src/main.py)
 
@@ -325,17 +250,17 @@ app = MyImport()
 app.run()
 ```
 
-## Step 3. Advanced debug
+## Step 4. Advanced debug
 
 Advanced debug is for final app testing. In this case, import app will download data from Supervisely server and upload images to new project. You can use this mode to test your app before [publishing it to the Ecosystem](https://developer.supervisely.com/getting-started/cli#release-your-private-apps-using-cli).
+
+Upload [demo data](https://github.com/supervisely-ecosystem/template-import-app/blob/master/data/) provided in the repository to Supervisely Team Files in order to use it in the app or use your own data.
 
 To switch between local and advanced debug modes, select corresponding debug configuration in **`Run & Debug`** menu in VS Code
 
 <img src="https://github.com/supervisely-ecosystem/template-import-app/assets/48913536/d77bb7a1-063a-4045-8d73-f303dc17d452">
 
 **advanced.env:**
-
-Upload [demo data](https://github.com/supervisely-ecosystem/template-import-app/blob/master/data/) provided in the repository to Supervisely Team Files in order to use it in the app or use your own data.
 
 ```python
 TEAM_ID=8                         # ⬅️ change it to your team ID
@@ -348,11 +273,11 @@ SLY_APP_DATA_DIR="input/"         # ⬅️ path to directory for local debugging
 # FILE="/data/my_file.txt"        # ⬅️ path to text file with links to images
 
 # or one of the following variables if you want to import data to existing:
-# PROJECT_ID=20811                # ⬅️ put your value here
-# DATASET_ID=64686                # ⬅️ put your value here | requires PROJECT_ID
+# PROJECT_ID=20811               # ⬅️ put your value here
+# DATASET_ID=64686               # ⬅️ put your value here | requires PROJECT_ID
 ```
 
-Please note that the path you specify in the `SLY_APP_DATA_DIR` variable will be used for storing import data, it means that data that you select or drag & drop in GUI to import will automatically be downloaded to this folder.
+Please note that the path you specify in the `SLY_APP_DATA_DIR` variable will be used for storing import data, it means that data that you select or drag & drop in GUI will be automatically downloaded to this folder.
 
 For example:
 - path on your local computer could be `/Users/admin/projects/template-import-app/input/`
@@ -363,3 +288,135 @@ Also note that all paths in Supervisely server are absolute and start from '/' s
 > Don't forget to add this path to `.gitignore` to exclude it from the list of files tracked by Git.
 
 ![Advanced debug](https://github.com/supervisely-ecosystem/template-import-app/assets/48913536/7ba8b1c6-d1f0-4423-bb82-81710b143a93)
+
+## `sly.app.Import` reference
+
+Import template has GUI out of the box and allows you skip boilerplate/routine operations. The only thing you need to do is to code your logic in the `process` method. Import template is customizable and allows you to tail import app to your needs.
+
+You can customize `sly.app.Import` class by passing arguments to the constructor:
+
+**allowed_project_types**
+
+Pass list of project types that you want to allow for import.
+By default, all project types are allowed.
+If you pass None, all project types will be allowed in project selector.
+
+Available project types: `["images", "videos", "volumes", "pointclouds", "pointcloud_episodes"]`
+
+```python
+app = MyImport(allowed_project_types=[sly.ProjectType.Volumes])
+```
+
+<img src="https://github.com/supervisely-ecosystem/template-import-app/assets/48913536/437cf96b-147a-4f71-adeb-488577c63305">
+
+**allowed_destination_options**
+
+Pass list of destination options that you want to allow for import.
+By default, all destination options are allowed.
+If you pass None, all destination options will be allowed.
+
+Allowed destinations: `["new_project", "existing_project", "existing_dataset"]`
+
+```python
+app = MyImport(allowed_destination_options=["New Project"])
+```
+
+<img src="https://github.com/supervisely-ecosystem/template-import-app/assets/48913536/7d9ad0ad-3914-48bd-90c3-87e920dfda10">
+
+```python
+app = MyImport(allowed_destination_options=["New Project", "Existing Project"])
+
+```
+
+<img src="https://github.com/supervisely-ecosystem/template-import-app/assets/48913536/f676b45b-9cd7-4339-abee-92f0076ad801">
+
+**allowed_data_type**
+
+Pass list of data types that you want to allow for import.
+By default, all data types are allowed.
+If you pass None, all data types will be allowed.
+
+Allowed data types: `["folder", "file"]`
+
+```python
+app = MyImport(allowed_data_type="folder")
+```
+
+<img src="https://github.com/supervisely-ecosystem/template-import-app/assets/48913536/d6b56204-a684-48fa-b880-b0616e10ab44">
+
+**`sly.app.Import` class has 2 methods:**
+
+* `process(self, context)`
+* `add_custom_settings(self)`
+
+**method process(self, context)**
+
+Main method where you implement your import logic, process and upload data to Supervisely server. This method must return project ID
+
+```python
+def process(self, context: sly.app.Import.Context):
+    # get or create project
+    project_id = context.project_id
+    if project_id is None:
+        project = api.project.create(
+            workspace_id=context.workspace_id,
+            name=context.project_name or "My Project",
+            change_name_if_conflict=True,
+        )
+        project_id = project.id
+    # implement your import logic here
+    return project_id
+```
+
+`context` is passed as an argument to the `process` method and the `context` object will be created automatically when you execute import script. `context` contains all the necessary information about the import process. 
+
+You can get the following information from the context:
+
+- `Team ID` - ID of the destination Team
+- `Workspace ID` - ID of the destination Workspace
+- `Project ID` - ID of an existing project to which data will be imported. None if you import data to a new project
+- `Dataset ID` - ID of an existing dataset to which data will be imported. None if you import data to a new dataset
+- `Path` - Path to your data on the local machine.
+- `Project name` - name of the project provided in the GUI if import data to new project
+- `Progress` - `tqdm` progress that you can use in your app to update progress bar
+- `Is on agent` - Shows if your data is located on the agent or not
+
+```python
+class MyImport(sly.app.Import):
+    def process(self, context: sly.app.Import.Context):
+        print(context)
+        # implement your import logic here
+```
+
+Output:
+
+```text
+Team ID: 8
+Workspace ID: 349
+Project ID: 8534
+Dataset ID: 22852
+Path: /data/my_file.txt
+Project name: ""
+Is on agent: False
+```
+
+**method add_custom_settings(self)**
+
+You can add custom settings to the import template using the `add_custom_settings(self)` method. This method should return any [Widget](../widgets/README.md). If you want to add multiple widgets, you can return a widget [`Container`](../widgets/layouts-and-containers/container.md).
+
+```python
+class MyImport(sly.app.Import):
+    def add_custom_settings(self):
+        # create widget
+        self.ann_checkbox = sly.app.widgets.Checkbox("Upload annotations", True)
+        # return widget with custom settings
+        return self.ann_checkbox
+        
+    def process(self, context: sly.app.Import.Context):
+        ...
+        # get widget state in process method
+        with_annotations = self.ann_checkbox.is_checked()
+        ...
+```
+
+<img src="https://github.com/supervisely-ecosystem/template-import-app/assets/48913536/a3b3765d-3ef8-497f-ae45-cfdaedd504cb">
